@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
+	"github.com/golang/glog"
 )
 
 type CloudifyScaleProvider struct {
@@ -31,36 +32,43 @@ type CloudifyScaleProvider struct {
 
 // Name returns name of the cloud provider.
 func (cl *CloudifyScaleProvider) Name() string {
+	glog.Warning("Name")
 	return "cloudify"
 }
 
 // NodeGroups returns all node groups configured for this cloud provider.
 func (cl *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
+	glog.Warning("NodeGroups")
 	return []cloudprovider.NodeGroup{}
 }
 
 // NodeGroupForNode returns the node group for the given node.
 func (cl *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprovider.NodeGroup, error) {
+	glog.Warning("NodeGroupForNode")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // Pricing returns pricing model for this cloud provider or error if not available.
 func (cl *CloudifyScaleProvider) Pricing() (cloudprovider.PricingModel, errors.AutoscalerError) {
+	glog.Warning("Pricing")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // GetAvailableMachineTypes get all machine types that can be requested from the cloud provider.
 // Implementation optional.
 func (cl *CloudifyScaleProvider) GetAvailableMachineTypes() ([]string, error) {
+	glog.Warning("GetAvailableMachineTypes")
 	return []string{}, cloudprovider.ErrNotImplemented
 }
 
 // NewNodeGroup builds a theoretical node group based on the node definition provided. The node group is not automatically
 // created on the cloud provider side. The node group is not returned by NodeGroups() until it is created.
 func (cl *CloudifyScaleProvider) NewNodeGroup(machineType string, labels map[string]string, extraResources map[string]resource.Quantity) (cloudprovider.NodeGroup, error) {
+	glog.Warning("NewNodeGroup")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 func BuildCloudifyCloud(config io.Reader) (*CloudifyScaleProvider, error) {
+	glog.Warning("BuildCloudifyCloud")
 	return nil, nil
 }
