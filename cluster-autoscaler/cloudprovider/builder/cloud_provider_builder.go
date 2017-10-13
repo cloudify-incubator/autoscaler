@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider/aws"
+	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider/cloudifyprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider/gce"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider/kubemark"
 	"k8s.io/client-go/informers"
@@ -81,6 +82,23 @@ func (b CloudProviderBuilder) Build(discoveryOpts cloudprovider.NodeGroupDiscove
 		cloudProvider, err = gce.BuildGceCloudProvider(gceManager, nodeGroupsFlag)
 		if err != nil {
 			glog.Fatalf("Failed to create GCE cloud provider: %v", err)
+		}
+	}
+
+	if b.cloudProviderFlag == "cloudify" {
+		var cfyError error
+		if b.cloudConfig != "" {
+			config, fileErr := os.Open(b.cloudConfig)
+			if fileErr != nil {
+				glog.Fatalf("Couldn't open cloud provider configuration %s: %#v", b.cloudConfig, err)
+			}
+			defer config.Close()
+			cloudProvider, cfyError = cloudifyprovider.BuildCloudifyCloud(config)
+		} else {
+			cloudProvider, cfyError = cloudifyprovider.BuildCloudifyCloud(nil)
+		}
+		if cfyError != nil {
+			glog.Fatalf("Failed to create Cloudify cloud provider: %v", err)
 		}
 	}
 
