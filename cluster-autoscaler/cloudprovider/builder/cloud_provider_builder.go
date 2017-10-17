@@ -86,6 +86,7 @@ func (b CloudProviderBuilder) Build(discoveryOpts cloudprovider.NodeGroupDiscove
 	}
 
 	if b.cloudProviderFlag == "cloudify" {
+		glog.V(4).Infof("Cloudify As Provider")
 		var cfyError error
 		if b.cloudConfig != "" {
 			config, fileErr := os.Open(b.cloudConfig)
@@ -95,7 +96,7 @@ func (b CloudProviderBuilder) Build(discoveryOpts cloudprovider.NodeGroupDiscove
 			defer config.Close()
 			cloudProvider, cfyError = cloudifyprovider.BuildCloudifyCloud(config)
 		} else {
-			cloudProvider, cfyError = cloudifyprovider.BuildCloudifyCloud(nil)
+			glog.Fatalf("You need to provide configuration for Cloudify")
 		}
 		if cfyError != nil {
 			glog.Fatalf("Failed to create Cloudify cloud provider: %v", err)
