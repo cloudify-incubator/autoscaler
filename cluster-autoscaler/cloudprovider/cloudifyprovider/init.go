@@ -17,6 +17,8 @@ limitations under the License.
 package cloudifyprovider
 
 import (
+	"encoding/json"
+	"fmt"
 	cloudify "github.com/cloudify-incubator/cloudify-rest-go-client/cloudify"
 	"github.com/golang/glog"
 	"io"
@@ -24,10 +26,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
+	"os"
 )
 
 type CloudifyScaleProvider struct {
 	client *cloudify.CloudifyClient
+}
+
+type CloudifyProviderConfig struct {
+	Host       string `json:"host,omitempty"`
+	User       string `json:"user,omitempty"`
+	Password   string `json:"password,omitempty"`
+	Tenant     string `json:"tenant,omitempty"`
+	Deployment string `json:"deployment,omitempty"`
 }
 
 // Name returns name of the cloud provider.
@@ -69,6 +80,44 @@ func (cl *CloudifyScaleProvider) NewNodeGroup(machineType string, labels map[str
 }
 
 func BuildCloudifyCloud(config io.Reader) (*CloudifyScaleProvider, error) {
-	glog.Warning("BuildCloudifyCloud")
-	return nil, nil
+	glog.Warning("New Cloudify client")
+
+	var cloudConfig CloudifyProviderConfig
+	cloudConfig.Host = os.Getenv("CFY_HOST")
+	cloudConfig.User = os.Getenv("CFY_USER")
+	cloudConfig.Password = os.Getenv("CFY_PASSWORD")
+	cloudConfig.Tenant = os.Getenv("CFY_TENANT")
+	if config != nil {
+		err := json.NewDecoder(config).Decode(&cloudConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(cloudConfig.Host) == 0 {
+		return nil, fmt.Errorf("You have empty host")
+	}
+
+	if len(cloudConfig.User) == 0 {
+		return nil, fmt.Errorf("You have empty user")
+	}
+
+	if len(cloudConfig.Password) == 0 {
+		return nil, fmt.Errorf("You have empty password")
+	}
+
+	if len(cloudConfig.Tenant) == 0 {
+		return nil, fmt.Errorf("You have empty tenant")
+	}
+
+	if len(cloudConfig.Deployment) == 0 {
+		return nil, fmt.Errorf("You have empty deployment")
+	}
+
+	glog.Warningf("Config %+v", cloudConfig)
+	return &CloudifyScaleProvider{
+		client: cloudify.NewClient(
+			cloudConfig.Host, cloudConfig.User,
+			cloudConfig.Password, cloudConfig.Tenant),
+	}, nil
 }
