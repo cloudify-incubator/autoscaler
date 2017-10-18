@@ -26,43 +26,66 @@ import (
 )
 
 type CloudifyScaleProvider struct {
-	client *cloudify.CloudifyClient
+	client       *cloudify.CloudifyClient
+	deploymentID string
 }
 
 // Name returns name of the cloud provider.
-func (cl *CloudifyScaleProvider) Name() string {
+func (clsp *CloudifyScaleProvider) Name() string {
 	glog.Warning("Name")
 	return "cloudify"
 }
 
 // NodeGroups returns all node groups configured for this cloud provider.
-func (cl *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
+func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 	glog.Warning("NodeGroups")
-	return []cloudprovider.NodeGroup{}
+	nodes := []cloudprovider.NodeGroup{}
+
+	// get all nodes with type=="kubernetes_host"
+	params := map[string]string{}
+	params["deployment_id"] = clsp.deploymentID
+	cloud_nodes := clsp.client.GetNodes(params)
+	for _, node := range cloud_nodes.Items {
+		var not_kubernetes_host bool = true
+		for _, type_name := range node.TypeHierarchy {
+			if type_name == "kubernetes_host" {
+				not_kubernetes_host = false
+				break
+			}
+		}
+
+		if not_kubernetes_host {
+			continue
+		}
+
+		nodes = append(nodes, CreateNodeGroup(clsp.client, clsp.deploymentID, node.Id))
+	}
+	glog.Warningf("Nodes result %+v", nodes)
+	return nodes
 }
 
 // NodeGroupForNode returns the node group for the given node.
-func (cl *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprovider.NodeGroup, error) {
+func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprovider.NodeGroup, error) {
 	glog.Warningf("NodeGroupForNode %+v", node)
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // Pricing returns pricing model for this cloud provider or error if not available.
-func (cl *CloudifyScaleProvider) Pricing() (cloudprovider.PricingModel, errors.AutoscalerError) {
+func (clsp *CloudifyScaleProvider) Pricing() (cloudprovider.PricingModel, errors.AutoscalerError) {
 	glog.Warning("Pricing")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // GetAvailableMachineTypes get all machine types that can be requested from the cloud provider.
 // Implementation optional.
-func (cl *CloudifyScaleProvider) GetAvailableMachineTypes() ([]string, error) {
+func (clsp *CloudifyScaleProvider) GetAvailableMachineTypes() ([]string, error) {
 	glog.Warning("GetAvailableMachineTypes")
 	return []string{}, cloudprovider.ErrNotImplemented
 }
 
 // NewNodeGroup builds a theoretical node group based on the node definition provided. The node group is not automatically
 // created on the cloud provider side. The node group is not returned by NodeGroups() until it is created.
-func (cl *CloudifyScaleProvider) NewNodeGroup(machineType string, labels map[string]string, extraResources map[string]resource.Quantity) (cloudprovider.NodeGroup, error) {
+func (clsp *CloudifyScaleProvider) NewNodeGroup(machineType string, labels map[string]string, extraResources map[string]resource.Quantity) (cloudprovider.NodeGroup, error) {
 	glog.Warningf("NewNodeGroup: %+v %+v %+v", machineType, labels, extraResources)
 	return nil, cloudprovider.ErrNotImplemented
 }

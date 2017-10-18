@@ -5126,7 +5126,7 @@
 		},
 		{
 			"ImportPath": "github.com/cloudify-incubator/cloudify-rest-go-client",
-			"Rev": "d396effea2af50bbf8e74ff8ca284fec2a5ebabc"
+			"Rev": "f7d4a1fa3e6dd29b4cee06ca13ff5e95694a4ddb"
 		}
 	]
 }

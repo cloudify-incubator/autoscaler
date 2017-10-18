@@ -73,5 +73,6 @@ func BuildCloudifyCloud(config io.Reader) (*CloudifyScaleProvider, error) {
 		client: cloudify.NewClient(
 			cloudConfig.Host, cloudConfig.User,
 			cloudConfig.Password, cloudConfig.Tenant),
+		deploymentID: cloudConfig.Deployment,
 	}, nil
 }
