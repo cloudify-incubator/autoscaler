@@ -58,9 +58,9 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 			continue
 		}
 
-		nodes = append(nodes, CreateNodeGroup(clsp.client, clsp.deploymentID, node.Id))
+		nodes = append(nodes, CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, node.Id))
 	}
-	glog.Warningf("Nodes result %+v", nodes)
+	glog.Warningf("NodeGroups:%+v", nodes)
 	return nodes
 }
 

@@ -30,15 +30,46 @@ type CloudifyNodeGroup struct {
 	deploymentID string
 }
 
+func (clng *CloudifyNodeGroup) getCloudifyNode() *cloudify.CloudifyNode {
+	glog.Warningf("Node state(%v.%v)", clng.deploymentID, clng.nodeID)
+
+	// filter nodes
+	params := map[string]string{}
+	params["deployment_id"] = clng.deploymentID
+	params["id"] = clng.nodeID
+	cloud_nodes := clng.client.GetNodes(params)
+	if len(cloud_nodes.Items) != 1 {
+		glog.Errorf("Returned wrong count of nodes:%+v", clng.nodeID)
+		return nil
+	}
+	return &cloud_nodes.Items[0]
+}
+
 // MaxSize returns maximum size of the node group.
 func (clng *CloudifyNodeGroup) MaxSize() int {
 	glog.Warningf("MaxSize")
+	node := clng.getCloudifyNode()
+	if node != nil {
+		max_size := node.MaxNumberOfInstances
+		glog.Warningf("MaxSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, max_size)
+		if max_size < 0 {
+			// unlimited is 100 nodes, by default
+			return 100
+		}
+		return max_size
+	}
 	return 0
 }
 
 // MinSize returns minimum size of the node group.
 func (clng *CloudifyNodeGroup) MinSize() int {
 	glog.Warningf("MinSize")
+	node := clng.getCloudifyNode()
+	if node != nil {
+		min_size := node.MinNumberOfInstances
+		glog.Warningf("MinSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, min_size)
+		return min_size
+	}
 	return 0
 }
 
@@ -48,6 +79,12 @@ func (clng *CloudifyNodeGroup) MinSize() int {
 // removed nodes are deleted completely). Implementation required.
 func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
 	glog.Warningf("TargetSize")
+	node := clng.getCloudifyNode()
+	if node != nil {
+		planned_size := node.PlannedNumberOfInstances
+		glog.Warningf("TargetSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, planned_size)
+		return planned_size, nil
+	}
 	return 0, cloudprovider.ErrNotImplemented
 }
 
@@ -79,8 +116,8 @@ func (clng *CloudifyNodeGroup) DecreaseTargetSize(delta int) error {
 
 // Id returns an unique identifier of the node group.
 func (clng *CloudifyNodeGroup) Id() string {
-	glog.Warningf("Id: %+v", clng.nodeID)
-	return clng.nodeID
+	glog.Warningf("Id(%v.%v)", clng.deploymentID, clng.nodeID)
+	return clng.deploymentID + "." + clng.nodeID
 }
 
 // Debug returns a string containing all information regarding this node group.
@@ -134,8 +171,8 @@ func (clng *CloudifyNodeGroup) Autoprovisioned() bool {
 	return false
 }
 
-func CreateNodeGroup(client *cloudify.CloudifyClient, deployment, group_name string) *CloudifyNodeGroup {
-	glog.Warningf("CreateNodeGroup")
+func CloudifyNodeToNodeGroup(client *cloudify.CloudifyClient, deployment, group_name string) *CloudifyNodeGroup {
+	glog.Warningf("CloudifyNodeToNodeGroup(%v.%v)", deployment, group_name)
 	return &CloudifyNodeGroup{
 		client:       client,
 		nodeID:       group_name,
