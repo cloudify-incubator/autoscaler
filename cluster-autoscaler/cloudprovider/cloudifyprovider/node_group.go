@@ -92,7 +92,7 @@ func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
 // to explicitly name it and use DeleteNode. This function should wait until
 // node group size is updated. Implementation required.
 func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
-	glog.Warningf("IncreaseSize: %v", delta)
+	glog.Warningf("?IncreaseSize: %v", delta)
 	return cloudprovider.ErrNotImplemented
 }
 
@@ -100,7 +100,7 @@ func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
 // failure or if the given node doesn't belong to this node group. This function
 // should wait until node group size is updated. Implementation required.
 func (clng *CloudifyNodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
-	glog.Warningf("DeleteNodes: %+v", nodes)
+	glog.Warningf("?DeleteNodes: %+v", nodes)
 	return cloudprovider.ErrNotImplemented
 }
 
@@ -110,7 +110,7 @@ func (clng *CloudifyNodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
 // It is assumed that cloud provider will not delete the existing nodes when there
 // is an option to just decrease the target. Implementation required.
 func (clng *CloudifyNodeGroup) DecreaseTargetSize(delta int) error {
-	glog.Warningf("DecreaseTargetSize: %v", delta)
+	glog.Warningf("?DecreaseTargetSize: %v", delta)
 	return cloudprovider.ErrNotImplemented
 }
 
@@ -122,14 +122,26 @@ func (clng *CloudifyNodeGroup) Id() string {
 
 // Debug returns a string containing all information regarding this node group.
 func (clng *CloudifyNodeGroup) Debug() string {
-	glog.Warningf("Debug")
+	glog.Warningf("?Debug")
 	return ""
 }
 
 // Nodes returns a list of all nodes that belong to this node group.
 func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
-	glog.Warningf("Nodes")
-	return []string{}, cloudprovider.ErrNotImplemented
+	glog.Warningf("Nodes(%v.%v)", clng.deploymentID, clng.nodeID)
+
+	node_instances_list := []string{}
+	// filter nodes
+	params := map[string]string{}
+	params["deployment_id"] = clng.deploymentID
+	params["node_id"] = clng.nodeID
+	cloud_instances := clng.client.GetNodeInstances(params)
+	for _, instance := range cloud_instances.Items {
+		node_instances_list = append(node_instances_list, instance.Id)
+	}
+
+	glog.Warningf("Nodes(%v.%v): %+v", clng.deploymentID, clng.nodeID, node_instances_list)
+	return node_instances_list, nil
 }
 
 // TemplateNodeInfo returns a schedulercache.NodeInfo structure of an empty
@@ -139,20 +151,20 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 // capacity and allocatable information as well as all pods that are started on
 // the node by default, using manifest (most likely only kube-proxy). Implementation optional.
 func (clng *CloudifyNodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, error) {
-	glog.Warningf("TemplateNodeInfo")
+	glog.Warningf("?TemplateNodeInfo")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // Exist checks if the node group really exists on the cloud provider side. Allows to tell the
 // theoretical node group from the real one. Implementation required.
 func (clng *CloudifyNodeGroup) Exist() bool {
-	glog.Warningf("Exist")
+	glog.Warningf("?Exist")
 	return false
 }
 
 // Create creates the node group on the cloud provider side. Implementation optional.
 func (clng *CloudifyNodeGroup) Create() error {
-	glog.Warningf("Create")
+	glog.Warningf("?Create")
 	return cloudprovider.ErrNotImplemented
 }
 
@@ -160,14 +172,14 @@ func (clng *CloudifyNodeGroup) Create() error {
 // This will be executed only for autoprovisioned node groups, once their size drops to 0.
 // Implementation optional.
 func (clng *CloudifyNodeGroup) Delete() error {
-	glog.Warningf("Delete")
+	glog.Warningf("?Delete")
 	return cloudprovider.ErrNotImplemented
 }
 
 // Autoprovisioned returns true if the node group is autoprovisioned. An autoprovisioned group
 // was created by CA and can be deleted when scaled to 0.
 func (clng *CloudifyNodeGroup) Autoprovisioned() bool {
-	glog.Warningf("Autoprovisioned")
+	glog.Warningf("?Autoprovisioned")
 	return false
 }
 

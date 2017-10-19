@@ -66,26 +66,26 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 
 // NodeGroupForNode returns the node group for the given node.
 func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprovider.NodeGroup, error) {
-	glog.Warningf("NodeGroupForNode %+v", node)
+	glog.Warningf("?NodeGroupForNode %+v", node)
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // Pricing returns pricing model for this cloud provider or error if not available.
 func (clsp *CloudifyScaleProvider) Pricing() (cloudprovider.PricingModel, errors.AutoscalerError) {
-	glog.Warning("Pricing")
+	glog.Warning("?Pricing")
 	return nil, cloudprovider.ErrNotImplemented
 }
 
 // GetAvailableMachineTypes get all machine types that can be requested from the cloud provider.
 // Implementation optional.
 func (clsp *CloudifyScaleProvider) GetAvailableMachineTypes() ([]string, error) {
-	glog.Warning("GetAvailableMachineTypes")
+	glog.Warning("?GetAvailableMachineTypes")
 	return []string{}, cloudprovider.ErrNotImplemented
 }
 
 // NewNodeGroup builds a theoretical node group based on the node definition provided. The node group is not automatically
 // created on the cloud provider side. The node group is not returned by NodeGroups() until it is created.
 func (clsp *CloudifyScaleProvider) NewNodeGroup(machineType string, labels map[string]string, extraResources map[string]resource.Quantity) (cloudprovider.NodeGroup, error) {
-	glog.Warningf("NewNodeGroup: %+v %+v %+v", machineType, labels, extraResources)
+	glog.Warningf("?NewNodeGroup: %+v %+v %+v", machineType, labels, extraResources)
 	return nil, cloudprovider.ErrNotImplemented
 }
