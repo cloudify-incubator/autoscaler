@@ -66,8 +66,34 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 
 // NodeGroupForNode returns the node group for the given node.
 func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprovider.NodeGroup, error) {
-	glog.Warningf("?NodeGroupForNode %+v", node)
-	return nil, cloudprovider.ErrNotImplemented
+	glog.Warningf("NodeGroupForNode(%v.%v)", clsp.deploymentID, node.Name)
+
+	var params = map[string]string{}
+	params["deployment_id"] = clsp.deploymentID
+	nodeInstances := clsp.client.GetNodeInstances(params)
+
+	for _, nodeInstance := range nodeInstances.Items {
+		// check runtime properties
+		if nodeInstance.RuntimeProperties != nil {
+			if v, ok := nodeInstance.RuntimeProperties["name"]; ok == true {
+				switch v.(type) {
+				case string:
+					{
+						if v.(string) != node.Name {
+							// node with different name
+							continue
+						}
+					}
+				}
+			} else {
+				// node without name
+				continue
+			}
+			return CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, nodeInstance.NodeId), nil
+		}
+	}
+
+	return nil, nil
 }
 
 // Pricing returns pricing model for this cloud provider or error if not available.

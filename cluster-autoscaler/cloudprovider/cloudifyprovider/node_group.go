@@ -137,7 +137,17 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 	params["node_id"] = clng.nodeID
 	cloud_instances := clng.client.GetNodeInstances(params)
 	for _, instance := range cloud_instances.Items {
-		node_instances_list = append(node_instances_list, instance.Id)
+		// check runtime properties
+		if instance.RuntimeProperties != nil {
+			if v, ok := instance.RuntimeProperties["name"]; ok == true {
+				switch v.(type) {
+				case string:
+					{
+						node_instances_list = append(node_instances_list, v.(string))
+					}
+				}
+			}
+		}
 	}
 
 	glog.Warningf("Nodes(%v.%v): %+v", clng.deploymentID, clng.nodeID, node_instances_list)
