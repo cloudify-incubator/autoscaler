@@ -36,15 +36,26 @@ func (clsp *CloudifyScaleProvider) Name() string {
 	return "cloudify"
 }
 
-// NodeGroups returns all node groups configured for this cloud provider.
-func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
-	glog.Warning("NodeGroups")
-	nodes := []cloudprovider.NodeGroup{}
+func GetCloudifyNode(client *cloudify.CloudifyClient, deploymentID, nodeID string) *cloudify.CloudifyNode {
+	glog.Warningf("CloudifyNode(%v.%v)", deploymentID, nodeID)
+	// filter nodes
+	params := map[string]string{}
+	params["deployment_id"] = deploymentID
+	params["id"] = nodeID
+	cloud_nodes := client.GetNodes(params)
+	if len(cloud_nodes.Items) != 1 {
+		glog.Errorf("Returned wrong count of nodes:%+v", nodeID)
+		return nil
+	}
+	return &cloud_nodes.Items[0]
+}
 
+func GetCloudifyNodes(client *cloudify.CloudifyClient, deploymentID string) []cloudify.CloudifyNode {
+	resulted_nodes := []cloudify.CloudifyNode{}
 	// get all nodes with type=="kubernetes_host"
 	params := map[string]string{}
-	params["deployment_id"] = clsp.deploymentID
-	cloud_nodes := clsp.client.GetNodes(params)
+	params["deployment_id"] = deploymentID
+	cloud_nodes := client.GetNodes(params)
 	for _, node := range cloud_nodes.Items {
 		var not_kubernetes_host bool = true
 		for _, type_name := range node.TypeHierarchy {
@@ -74,11 +85,42 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 			} else {
 				continue
 			}
-		} else {
-			continue
+			resulted_nodes = append(resulted_nodes, node)
 		}
+	}
+	return resulted_nodes
+}
 
-		nodes = append(nodes, CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, node.Id))
+// NodeGroups returns all node groups configured for this cloud provider.
+func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
+	glog.Warning("NodeGroups")
+	nodes := []cloudprovider.NodeGroup{}
+
+	for _, node := range GetCloudifyNodes(clsp.client, clsp.deploymentID) {
+		if node.Properties != nil {
+			// Check tag
+			if v, ok := node.Properties["kubetag"]; ok == true {
+				switch v.(type) {
+				case string:
+					{
+						var already_inserted bool = false
+						for _, cloudifyNode := range nodes {
+							if cloudifyNode.Id() == (clsp.deploymentID + "." + v.(string)) {
+								already_inserted = true
+								break
+							}
+						}
+						if !already_inserted {
+							nodes = append(nodes, CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, v.(string)))
+						}
+					}
+				default:
+					continue
+				}
+			} else {
+				continue
+			}
+		}
 	}
 	glog.Warningf("NodeGroups:%+v", nodes)
 	return nodes
@@ -109,7 +151,20 @@ func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprov
 				// node without name
 				continue
 			}
-			return CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, nodeInstance.NodeId), nil
+			cloud_node := GetCloudifyNode(clsp.client, clsp.deploymentID, nodeInstance.NodeId)
+			if cloud_node != nil {
+				if cloud_node.Properties != nil {
+					// Check tag
+					if v, ok := cloud_node.Properties["kubetag"]; ok == true {
+						switch v.(type) {
+						case string:
+							{
+								return CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, v.(string)), nil
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 

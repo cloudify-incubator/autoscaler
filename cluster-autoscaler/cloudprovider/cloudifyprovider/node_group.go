@@ -30,47 +30,51 @@ type CloudifyNodeGroup struct {
 	deploymentID string
 }
 
-func (clng *CloudifyNodeGroup) getCloudifyNode() *cloudify.CloudifyNode {
-	glog.Warningf("Node state(%v.%v)", clng.deploymentID, clng.nodeID)
-
-	// filter nodes
-	params := map[string]string{}
-	params["deployment_id"] = clng.deploymentID
-	params["id"] = clng.nodeID
-	cloud_nodes := clng.client.GetNodes(params)
-	if len(cloud_nodes.Items) != 1 {
-		glog.Errorf("Returned wrong count of nodes:%+v", clng.nodeID)
-		return nil
+func (clng *CloudifyNodeGroup) getCloudifyNodes() []cloudify.CloudifyNode {
+	resulted_nodes := []cloudify.CloudifyNode{}
+	for _, cloud_node := range GetCloudifyNodes(clng.client, clng.deploymentID) {
+		if cloud_node.Properties != nil {
+			// Check tag
+			if v, ok := cloud_node.Properties["kubetag"]; ok == true {
+				switch v.(type) {
+				case string:
+					{
+						if v.(string) == clng.nodeID {
+							resulted_nodes = append(resulted_nodes, cloud_node)
+						}
+					}
+				}
+			}
+		}
 	}
-	return &cloud_nodes.Items[0]
+	return resulted_nodes
 }
 
 // MaxSize returns maximum size of the node group.
 func (clng *CloudifyNodeGroup) MaxSize() int {
-	glog.Warningf("MaxSize")
-	node := clng.getCloudifyNode()
-	if node != nil {
+	glog.Warningf("MaxSize(%v.%v)", clng.deploymentID, clng.nodeID)
+	var size int = 0
+	for _, node := range clng.getCloudifyNodes() {
 		max_size := node.MaxNumberOfInstances
-		glog.Warningf("MaxSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, max_size)
 		if max_size < 0 {
 			// unlimited is 100 nodes, by default
-			return 100
+			max_size = 100
 		}
-		return max_size
+		size += max_size
 	}
-	return 0
+	glog.Warningf("MaxSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, size)
+	return size
 }
 
 // MinSize returns minimum size of the node group.
 func (clng *CloudifyNodeGroup) MinSize() int {
-	glog.Warningf("MinSize")
-	node := clng.getCloudifyNode()
-	if node != nil {
-		min_size := node.MinNumberOfInstances
-		glog.Warningf("MinSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, min_size)
-		return min_size
+	glog.Warningf("MinSize(%v.%v)", clng.deploymentID, clng.nodeID)
+	var size int = 0
+	for _, node := range clng.getCloudifyNodes() {
+		size += node.MinNumberOfInstances
 	}
-	return 0
+	glog.Warningf("MinSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, size)
+	return size
 }
 
 // TargetSize returns the current target size of the node group. It is possible that the
@@ -78,14 +82,13 @@ func (clng *CloudifyNodeGroup) MinSize() int {
 // to Size() once everything stabilizes (new nodes finish startup and registration or
 // removed nodes are deleted completely). Implementation required.
 func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
-	glog.Warningf("TargetSize")
-	node := clng.getCloudifyNode()
-	if node != nil {
-		planned_size := node.PlannedNumberOfInstances
-		glog.Warningf("TargetSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, planned_size)
-		return planned_size, nil
+	glog.Warningf("TargetSize(%v.%v)", clng.deploymentID, clng.nodeID)
+	var size int = 0
+	for _, node := range clng.getCloudifyNodes() {
+		size += node.PlannedNumberOfInstances
 	}
-	return 0, cloudprovider.ErrNotImplemented
+	glog.Warningf("TargetSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, size)
+	return size, nil
 }
 
 // IncreaseSize increases the size of the node group. To delete a node you need
@@ -131,25 +134,26 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 	glog.Warningf("Nodes(%v.%v)", clng.deploymentID, clng.nodeID)
 
 	node_instances_list := []string{}
-	// filter nodes
-	params := map[string]string{}
-	params["deployment_id"] = clng.deploymentID
-	params["node_id"] = clng.nodeID
-	cloud_instances := clng.client.GetNodeInstances(params)
-	for _, instance := range cloud_instances.Items {
-		// check runtime properties
-		if instance.RuntimeProperties != nil {
-			if v, ok := instance.RuntimeProperties["name"]; ok == true {
-				switch v.(type) {
-				case string:
-					{
-						node_instances_list = append(node_instances_list, v.(string))
+	for _, node := range clng.getCloudifyNodes() {
+		// filter nodes
+		params := map[string]string{}
+		params["deployment_id"] = clng.deploymentID
+		params["node_id"] = node.Id
+		cloud_instances := clng.client.GetNodeInstances(params)
+		for _, instance := range cloud_instances.Items {
+			// check runtime properties
+			if instance.RuntimeProperties != nil {
+				if v, ok := instance.RuntimeProperties["name"]; ok == true {
+					switch v.(type) {
+					case string:
+						{
+							node_instances_list = append(node_instances_list, v.(string))
+						}
 					}
 				}
 			}
 		}
 	}
-
 	glog.Warningf("Nodes(%v.%v): %+v", clng.deploymentID, clng.nodeID, node_instances_list)
 	return node_instances_list, nil
 }
@@ -168,8 +172,9 @@ func (clng *CloudifyNodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, err
 // Exist checks if the node group really exists on the cloud provider side. Allows to tell the
 // theoretical node group from the real one. Implementation required.
 func (clng *CloudifyNodeGroup) Exist() bool {
-	glog.Warningf("?Exist")
-	return false
+	glog.Warningf("Exist(%v.%v)", clng.deploymentID, clng.nodeID)
+
+	return len(clng.getCloudifyNodes()) > 0
 }
 
 // Create creates the node group on the cloud provider side. Implementation optional.
