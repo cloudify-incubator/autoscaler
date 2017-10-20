@@ -58,6 +58,26 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 			continue
 		}
 
+		if node.Properties != nil {
+			// hide nodes without scale flag
+			if v, ok := node.Properties["kubescale"]; ok == true {
+				switch v.(type) {
+				case bool:
+					{
+						if !v.(bool) {
+							continue
+						}
+					}
+				default:
+					continue
+				}
+			} else {
+				continue
+			}
+		} else {
+			continue
+		}
+
 		nodes = append(nodes, CloudifyNodeToNodeGroup(clsp.client, clsp.deploymentID, node.Id))
 	}
 	glog.Warningf("NodeGroups:%+v", nodes)
