@@ -21,8 +21,11 @@ import (
 	cloudify "github.com/cloudify-incubator/cloudify-rest-go-client/cloudify"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/schedulercache"
+	"math/rand"
 )
 
 type CloudifyNodeGroup struct {
@@ -97,6 +100,13 @@ func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
 // node group size is updated. Implementation required.
 func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
 	glog.Warningf("IncreaseSize(%v.%v): %v", clng.deploymentID, clng.nodeID, delta)
+
+	// Check for finish executuons
+	err := clng.client.WaitBeforeRunExecution(clng.deploymentID)
+	if err != nil {
+		return err
+	}
+
 	for _, node := range clng.getCloudifyNodes() {
 		if node.MaxNumberOfInstances < 0 || node.NumberOfInstances < node.MaxNumberOfInstances {
 			var exec cloudify.CloudifyExecutionPost
@@ -104,7 +114,7 @@ func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
 			exec.DeploymentId = clng.deploymentID
 			exec.Parameters = map[string]interface{}{}
 			exec.Parameters["scalable_entity_name"] = node.Id
-			execution := clng.client.RunExecution(exec)
+			execution := clng.client.RunExecution(exec, false)
 			glog.Warningf("Final status for %v, last status: %v", execution.Id, execution.Status)
 			if execution.Status == "failed" {
 				return fmt.Errorf(execution.ErrorMessage)
@@ -136,7 +146,6 @@ func (clng *CloudifyNodeGroup) DecreaseTargetSize(delta int) error {
 
 // Id returns an unique identifier of the node group.
 func (clng *CloudifyNodeGroup) Id() string {
-	glog.Warningf("Id(%v.%v)", clng.deploymentID, clng.nodeID)
 	return clng.deploymentID + "." + clng.nodeID
 }
 
@@ -182,8 +191,37 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 // capacity and allocatable information as well as all pods that are started on
 // the node by default, using manifest (most likely only kube-proxy). Implementation optional.
 func (clng *CloudifyNodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, error) {
-	glog.Warningf("?TemplateNodeInfo")
-	return nil, cloudprovider.ErrNotImplemented
+	glog.Warningf("TemplateNodeInfo(%v.%v)", clng.deploymentID, clng.nodeID)
+
+	node := apiv1.Node{}
+	nodeName := fmt.Sprintf("%s-cloudify-%d", clng.Id(), rand.Int63())
+
+	node.ObjectMeta = metav1.ObjectMeta{
+		Name:     nodeName,
+		SelfLink: fmt.Sprintf("/api/v1/nodes/%s", nodeName),
+		Labels:   map[string]string{},
+	}
+
+	node.Status = apiv1.NodeStatus{
+		Capacity: apiv1.ResourceList{},
+	}
+
+	// TODO: get a real value.
+	node.Status.Capacity[apiv1.ResourcePods] = *resource.NewQuantity(110, resource.DecimalSI)
+	node.Status.Capacity[apiv1.ResourceCPU] = *resource.NewQuantity(2, resource.DecimalSI)
+	node.Status.Capacity[apiv1.ResourceNvidiaGPU] = *resource.NewQuantity(0, resource.DecimalSI)
+	node.Status.Capacity[apiv1.ResourceMemory] = *resource.NewQuantity(2024*1024*1024, resource.DecimalSI)
+
+	// TODO: use proper allocatable!!
+	node.Status.Allocatable = node.Status.Capacity
+
+	node.Status.Conditions = cloudprovider.BuildReadyConditions()
+
+	nodeInfo := schedulercache.NewNodeInfo(cloudprovider.BuildKubeProxy(clng.Id()))
+	nodeInfo.SetNode(&node)
+
+	glog.Warningf("Returned templateNodeInfo(%v.%v):%+v", clng.deploymentID, clng.nodeID, nodeInfo)
+	return nodeInfo, nil
 }
 
 // Exist checks if the node group really exists on the cloud provider side. Allows to tell the
