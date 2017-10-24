@@ -37,7 +37,7 @@ func (clsp *CloudifyScaleProvider) Name() string {
 }
 
 func GetCloudifyNode(client *cloudify.CloudifyClient, deploymentID, nodeID string) *cloudify.CloudifyNode {
-	glog.Warningf("CloudifyNode(%v.%v)", deploymentID, nodeID)
+	glog.Warningf("Get Nodes in Cloudify(%v.%v)", deploymentID, nodeID)
 	// filter nodes
 	params := map[string]string{}
 	params["deployment_id"] = deploymentID
@@ -154,6 +154,22 @@ func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprov
 			cloud_node := GetCloudifyNode(clsp.client, clsp.deploymentID, nodeInstance.NodeId)
 			if cloud_node != nil {
 				if cloud_node.Properties != nil {
+					// hide nodes without scale flag
+					if v, ok := cloud_node.Properties["kubescale"]; ok == true {
+						switch v.(type) {
+						case bool:
+							{
+								if !v.(bool) {
+									continue
+								}
+							}
+						default:
+							continue
+						}
+					} else {
+						continue
+					}
+
 					// Check tag
 					if v, ok := cloud_node.Properties["kubetag"]; ok == true {
 						switch v.(type) {
@@ -167,7 +183,7 @@ func (clsp *CloudifyScaleProvider) NodeGroupForNode(node *apiv1.Node) (cloudprov
 			}
 		}
 	}
-
+	glog.Warningf("NodeGroupForNode(%v.%v): Skiped", clsp.deploymentID, node.Name)
 	return nil, nil
 }
 

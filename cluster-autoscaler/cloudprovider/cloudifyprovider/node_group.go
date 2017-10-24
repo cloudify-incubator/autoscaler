@@ -17,6 +17,7 @@ limitations under the License.
 package cloudifyprovider
 
 import (
+	"fmt"
 	cloudify "github.com/cloudify-incubator/cloudify-rest-go-client/cloudify"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
@@ -95,8 +96,24 @@ func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
 // to explicitly name it and use DeleteNode. This function should wait until
 // node group size is updated. Implementation required.
 func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
-	glog.Warningf("?IncreaseSize: %v", delta)
-	return cloudprovider.ErrNotImplemented
+	glog.Warningf("IncreaseSize(%v.%v): %v", clng.deploymentID, clng.nodeID, delta)
+	for _, node := range clng.getCloudifyNodes() {
+		if node.MaxNumberOfInstances < 0 || node.NumberOfInstances < node.MaxNumberOfInstances {
+			var exec cloudify.CloudifyExecutionPost
+			exec.WorkflowId = "scale"
+			exec.DeploymentId = clng.deploymentID
+			exec.Parameters = map[string]interface{}{}
+			exec.Parameters["scalable_entity_name"] = node.Id
+			execution := clng.client.RunExecution(exec)
+			glog.Warningf("Final status for %v, last status: %v", execution.Id, execution.Status)
+			if execution.Status == "failed" {
+				return fmt.Errorf(execution.ErrorMessage)
+			}
+			return nil
+		}
+	}
+	glog.Warningf("No place to scale(%v.%v)", clng.deploymentID, clng.nodeID)
+	return fmt.Errorf("No place to scale")
 }
 
 // DeleteNodes deletes nodes from this node group. Error is returned either on
@@ -172,7 +189,7 @@ func (clng *CloudifyNodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, err
 // Exist checks if the node group really exists on the cloud provider side. Allows to tell the
 // theoretical node group from the real one. Implementation required.
 func (clng *CloudifyNodeGroup) Exist() bool {
-	glog.Warningf("Exist(%v.%v)", clng.deploymentID, clng.nodeID)
+	glog.Warningf("Exist(%v.%v):#%v", clng.deploymentID, clng.nodeID, len(clng.getCloudifyNodes()))
 
 	return len(clng.getCloudifyNodes()) > 0
 }
