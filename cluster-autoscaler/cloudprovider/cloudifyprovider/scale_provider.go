@@ -96,10 +96,10 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 	glog.Warning("NodeGroups")
 	nodes := []cloudprovider.NodeGroup{}
 
-	for _, node := range GetCloudifyNodes(clsp.client, clsp.deploymentID) {
-		if node.Properties != nil {
+	for _, cloud_node := range GetCloudifyNodes(clsp.client, clsp.deploymentID) {
+		if cloud_node.Properties != nil {
 			// Check tag
-			if v, ok := node.Properties["kubetag"]; ok == true {
+			if v, ok := cloud_node.Properties["kubetag"]; ok == true {
 				switch v.(type) {
 				case string:
 					{

@@ -58,8 +58,8 @@ func (clng *CloudifyNodeGroup) getCloudifyNodes() []cloudify.CloudifyNode {
 func (clng *CloudifyNodeGroup) MaxSize() int {
 	glog.Warningf("MaxSize(%v.%v)", clng.deploymentID, clng.nodeID)
 	var size int = 0
-	for _, node := range clng.getCloudifyNodes() {
-		max_size := node.MaxNumberOfInstances
+	for _, cloud_node := range clng.getCloudifyNodes() {
+		max_size := cloud_node.MaxNumberOfInstances
 		if max_size < 0 {
 			// unlimited is 100 nodes, by default
 			max_size = 100
@@ -74,8 +74,8 @@ func (clng *CloudifyNodeGroup) MaxSize() int {
 func (clng *CloudifyNodeGroup) MinSize() int {
 	glog.Warningf("MinSize(%v.%v)", clng.deploymentID, clng.nodeID)
 	var size int = 0
-	for _, node := range clng.getCloudifyNodes() {
-		size += node.MinNumberOfInstances
+	for _, cloud_node := range clng.getCloudifyNodes() {
+		size += cloud_node.MinNumberOfInstances
 	}
 	glog.Warningf("MinSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, size)
 	return size
@@ -88,8 +88,8 @@ func (clng *CloudifyNodeGroup) MinSize() int {
 func (clng *CloudifyNodeGroup) TargetSize() (int, error) {
 	glog.Warningf("TargetSize(%v.%v)", clng.deploymentID, clng.nodeID)
 	var size int = 0
-	for _, node := range clng.getCloudifyNodes() {
-		size += node.PlannedNumberOfInstances
+	for _, cloud_node := range clng.getCloudifyNodes() {
+		size += cloud_node.PlannedNumberOfInstances
 	}
 	glog.Warningf("TargetSize(%v.%v):%+v", clng.deploymentID, clng.nodeID, size)
 	return size, nil
@@ -107,13 +107,13 @@ func (clng *CloudifyNodeGroup) IncreaseSize(delta int) error {
 		return err
 	}
 
-	for _, node := range clng.getCloudifyNodes() {
-		if node.MaxNumberOfInstances < 0 || node.NumberOfInstances < node.MaxNumberOfInstances {
+	for _, cloud_node := range clng.getCloudifyNodes() {
+		if cloud_node.MaxNumberOfInstances < 0 || cloud_node.NumberOfInstances < cloud_node.MaxNumberOfInstances {
 			var exec cloudify.CloudifyExecutionPost
 			exec.WorkflowId = "scale"
 			exec.DeploymentId = clng.deploymentID
 			exec.Parameters = map[string]interface{}{}
-			exec.Parameters["scalable_entity_name"] = node.Id
+			exec.Parameters["scalable_entity_name"] = cloud_node.Id
 			execution := clng.client.RunExecution(exec, false)
 			glog.Warningf("Final status for %v, last status: %v", execution.Id, execution.Status)
 			if execution.Status == "failed" {
@@ -160,11 +160,11 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 	glog.Warningf("Nodes(%v.%v)", clng.deploymentID, clng.nodeID)
 
 	node_instances_list := []string{}
-	for _, node := range clng.getCloudifyNodes() {
+	for _, cloud_node := range clng.getCloudifyNodes() {
 		// filter nodes
 		params := map[string]string{}
 		params["deployment_id"] = clng.deploymentID
-		params["node_id"] = node.Id
+		params["node_id"] = cloud_node.Id
 		cloud_instances := clng.client.GetNodeInstances(params)
 		for _, instance := range cloud_instances.Items {
 			// check runtime properties
@@ -182,6 +182,53 @@ func (clng *CloudifyNodeGroup) Nodes() ([]string, error) {
 	}
 	glog.Warningf("Nodes(%v.%v): %+v", clng.deploymentID, clng.nodeID, node_instances_list)
 	return node_instances_list, nil
+}
+
+func (clng *CloudifyNodeGroup) getCurrentCharacteristics() (int64, int64) {
+	var cpu int64 = 1
+	var memory int64 = 512
+	for _, cloud_node := range clng.getCloudifyNodes() {
+		if cloud_node.Properties != nil {
+			if v, ok := cloud_node.Properties["kubemem"]; ok == true {
+				switch v.(type) {
+				case int:
+				case uint8:
+				case uint16:
+				case uint32:
+				case uint64:
+				case int8:
+				case int16:
+				case int32:
+				case int64:
+					{
+						if memory < int64(v.(int)) {
+							memory = int64(v.(int))
+						}
+					}
+				}
+			}
+			if v, ok := cloud_node.Properties["kubecpu"]; ok == true {
+				switch v.(type) {
+				case int:
+				case uint8:
+				case uint16:
+				case uint32:
+				case uint64:
+				case int8:
+				case int16:
+				case int32:
+				case int64:
+					{
+						if cpu < int64(v.(int)) {
+							cpu = int64(v.(int))
+						}
+					}
+				}
+			}
+		}
+	}
+	glog.Warningf("getCurrentCharacteristics(%v.%v):cpu %v, mem: %v", clng.deploymentID, clng.nodeID, cpu, memory)
+	return cpu, memory
 }
 
 // TemplateNodeInfo returns a schedulercache.NodeInfo structure of an empty
@@ -207,10 +254,12 @@ func (clng *CloudifyNodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, err
 	}
 
 	// TODO: get a real value.
+	cpu, memory := clng.getCurrentCharacteristics()
+
 	node.Status.Capacity[apiv1.ResourcePods] = *resource.NewQuantity(110, resource.DecimalSI)
-	node.Status.Capacity[apiv1.ResourceCPU] = *resource.NewQuantity(2, resource.DecimalSI)
+	node.Status.Capacity[apiv1.ResourceCPU] = *resource.NewQuantity(cpu, resource.DecimalSI)
 	node.Status.Capacity[apiv1.ResourceNvidiaGPU] = *resource.NewQuantity(0, resource.DecimalSI)
-	node.Status.Capacity[apiv1.ResourceMemory] = *resource.NewQuantity(2024*1024*1024, resource.DecimalSI)
+	node.Status.Capacity[apiv1.ResourceMemory] = *resource.NewQuantity(memory*1024*1024, resource.DecimalSI)
 
 	// TODO: use proper allocatable!!
 	node.Status.Allocatable = node.Status.Capacity
