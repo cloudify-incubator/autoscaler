@@ -94,7 +94,7 @@ type AutoscalingOptions struct {
 	OkTotalUnreadyCount int
 	// CloudConfig is the path to the cloud provider configuration file. Empty string for no configuration file.
 	CloudConfig string
-	// CloudProviderName sets the type of the cloud provider CA is about to run in. Allowed values: gce, aws
+	// CloudProviderName sets the type of the cloud provider CA is about to run in. Allowed values: gce, aws, cloudify
 	CloudProviderName string
 	// NodeGroups is the list of node groups a.k.a autoscaling targets
 	NodeGroups []string
