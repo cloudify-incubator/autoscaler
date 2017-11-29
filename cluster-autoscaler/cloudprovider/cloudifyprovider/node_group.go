@@ -38,7 +38,7 @@ type NodeGroup struct {
 
 // MaxSize returns maximum size of the node group.
 func (clng *NodeGroup) MaxSize() int {
-	glog.Warningf("MaxSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("MaxSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
 	scaleGroup, err := clng.client.GetDeploymentScaleGroup(clng.deploymentID, clng.scaleGroup)
 	if err != nil {
 		glog.Errorf("Issues with get limits:%+v", clng.scaleGroup)
@@ -55,7 +55,7 @@ func (clng *NodeGroup) MaxSize() int {
 
 // MinSize returns minimum size of the node group.
 func (clng *NodeGroup) MinSize() int {
-	glog.Warningf("MinSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("MinSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
 	scaleGroup, err := clng.client.GetDeploymentScaleGroup(clng.deploymentID, clng.scaleGroup)
 	if err != nil {
 		glog.Errorf("Issues with get limits:%+v", clng.scaleGroup)
@@ -71,7 +71,7 @@ func (clng *NodeGroup) MinSize() int {
 // to Size() once everything stabilizes (new nodes finish startup and registration or
 // removed nodes are deleted completely). Implementation required.
 func (clng *NodeGroup) TargetSize() (int, error) {
-	glog.Warningf("TargetSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("TargetSize(%v.%v)", clng.deploymentID, clng.scaleGroup)
 	scaleGroup, err := clng.client.GetDeploymentScaleGroup(clng.deploymentID, clng.scaleGroup)
 	if err != nil {
 		return 0, fmt.Errorf("Issues with get limits:%+v", clng.scaleGroup)
@@ -85,7 +85,7 @@ func (clng *NodeGroup) TargetSize() (int, error) {
 // to explicitly name it and use DeleteNode. This function should wait until
 // node group size is updated. Implementation required.
 func (clng *NodeGroup) IncreaseSize(delta int) error {
-	glog.Warningf("IncreaseSize(%v.%v): %v", clng.deploymentID, clng.scaleGroup, delta)
+	glog.V(4).Infof("IncreaseSize(%v.%v): %v", clng.deploymentID, clng.scaleGroup, delta)
 
 	scaleGroup, err := clng.client.GetDeploymentScaleGroup(clng.deploymentID, clng.scaleGroup)
 	if err != nil {
@@ -123,7 +123,7 @@ func (clng *NodeGroup) IncreaseSize(delta int) error {
 // failure or if the given node doesn't belong to this node group. This function
 // should wait until node group size is updated. Implementation required.
 func (clng *NodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
-	glog.Warningf("DeleteNodes: (%v.%v): %+v", clng.deploymentID, clng.scaleGroup, nodes)
+	glog.V(4).Infof("DeleteNodes: (%v.%v): %+v", clng.deploymentID, clng.scaleGroup, nodes)
 	var removedIdsIncludeHint = []string{}
 
 	// Check for finish executuons
@@ -226,7 +226,7 @@ func (clng *NodeGroup) Debug() string {
 
 // Nodes returns a list of all nodes that belong to this node group.
 func (clng *NodeGroup) Nodes() ([]string, error) {
-	glog.Warningf("Nodes(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("Nodes(%v.%v)", clng.deploymentID, clng.scaleGroup)
 
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
@@ -255,7 +255,7 @@ func (clng *NodeGroup) Nodes() ([]string, error) {
 
 // InstancesNames - returns a list of all nodes that belong to this node group.
 func (clng *NodeGroup) InstancesNames() ([]string, error) {
-	glog.Warningf("InstancesNames(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("InstancesNames(%v.%v)", clng.deploymentID, clng.scaleGroup)
 
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
@@ -333,7 +333,7 @@ func (clng *NodeGroup) getCurrentCharacteristics() (int64, int64) {
 // capacity and allocatable information as well as all pods that are started on
 // the node by default, using manifest (most likely only kube-proxy). Implementation optional.
 func (clng *NodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, error) {
-	glog.Warningf("TemplateNodeInfo(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("TemplateNodeInfo(%v.%v)", clng.deploymentID, clng.scaleGroup)
 
 	node := apiv1.Node{}
 	nodeName := fmt.Sprintf("%s-cloudify-%d", clng.Id(), rand.Int63())
@@ -371,7 +371,7 @@ func (clng *NodeGroup) TemplateNodeInfo() (*schedulercache.NodeInfo, error) {
 // Exist checks if the node group really exists on the cloud provider side. Allows to tell the
 // theoretical node group from the real one. Implementation required.
 func (clng *NodeGroup) Exist() bool {
-	glog.Warningf("Exist(%v.%v)", clng.deploymentID, clng.scaleGroup)
+	glog.V(4).Infof("Exist(%v.%v)", clng.deploymentID, clng.scaleGroup)
 	_, err := clng.client.GetDeploymentScaleGroup(clng.deploymentID, clng.scaleGroup)
 	if err != nil {
 		glog.Errorf("Issues with get limits:%+v", clng.scaleGroup)
@@ -401,9 +401,14 @@ func (clng *NodeGroup) Autoprovisioned() bool {
 	return false
 }
 
+// String return scaleGroup name
+func (clng *NodeGroup) String() string {
+	return clng.scaleGroup
+}
+
 // NodeToNodeGroup - create cloudify node group
 func NodeToNodeGroup(client *cloudify.Client, deploymentID, groupName string) *NodeGroup {
-	glog.Warningf("NodeToNodeGroup(%v.%v)", deploymentID, groupName)
+	glog.V(4).Infof("NodeToNodeGroup(%v.%v)", deploymentID, groupName)
 	return &NodeGroup{
 		client:       client,
 		scaleGroup:   groupName,

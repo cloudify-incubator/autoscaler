@@ -71,7 +71,7 @@ func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.Resourc
 		return nil, fmt.Errorf("You have empty deployment")
 	}
 
-	glog.Warningf("Config %+v", cloudConfig)
+	glog.V(4).Infof("Config %+v", cloudConfig)
 	return &CloudifyScaleProvider{
 		client: cloudify.NewClient(
 			cloudConfig.Host, cloudConfig.User,

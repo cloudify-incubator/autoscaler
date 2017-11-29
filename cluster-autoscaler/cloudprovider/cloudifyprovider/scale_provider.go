@@ -34,13 +34,13 @@ type CloudifyScaleProvider struct {
 
 // Name returns name of the cloud provider.
 func (clsp *CloudifyScaleProvider) Name() string {
-	glog.Warningf("Name: %v", clsp.deploymentID)
+	glog.V(4).Infof("Name: %v", clsp.deploymentID)
 	return "cloudify"
 }
 
 // GetResourceLimiter returns struct containing limits (max, min) for resources (cores, memory etc.).
 func (clsp *CloudifyScaleProvider) GetResourceLimiter() (*cloudprovider.ResourceLimiter, error) {
-	glog.Warningf("GetResourceLimiter: %v", clsp.deploymentID)
+	glog.V(4).Infof("GetResourceLimiter: %v", clsp.deploymentID)
 	return clsp.resourceLimiter, nil
 }
 
@@ -53,7 +53,7 @@ func (clsp *CloudifyScaleProvider) Refresh() error {
 
 // NodeGroups returns all node groups configured for this cloud provider.
 func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
-	glog.Warningf("NodeGroups: %+v", clsp.deploymentID)
+	glog.V(4).Infof("NodeGroups, Deployment: %+v", clsp.deploymentID)
 	nodes := []cloudprovider.NodeGroup{}
 
 	deployment, err := clsp.client.GetDeployment(clsp.deploymentID)
@@ -68,13 +68,13 @@ func (clsp *CloudifyScaleProvider) NodeGroups() []cloudprovider.NodeGroup {
 		}
 	}
 
-	glog.Warningf("NodeGroups:%+v", nodes)
+	glog.Warningf("NodeGroups: %+v", nodes)
 	return nodes
 }
 
 // NodeGroupForNode returns the node group for the given node.
 func (clsp *CloudifyScaleProvider) NodeGroupForNode(kubeNode *apiv1.Node) (cloudprovider.NodeGroup, error) {
-	glog.Warningf("NodeGroupForNode(%v.%v)", clsp.deploymentID, kubeNode.Name)
+	glog.V(4).Infof("NodeGroupForNode(%v.%v)", clsp.deploymentID, kubeNode.Name)
 
 	groupedInstances, err := clsp.client.GetDeploymentInstancesScaleGrouped(
 		clsp.deploymentID, "cloudify.nodes.ApplicationServer.kubernetes.Node")
