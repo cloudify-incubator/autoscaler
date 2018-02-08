@@ -28,10 +28,7 @@ import (
 
 // Config - settings for connect to cloudify
 type Config struct {
-	Host       string `json:"host,omitempty"`
-	User       string `json:"user,omitempty"`
-	Password   string `json:"password,omitempty"`
-	Tenant     string `json:"tenant,omitempty"`
+	cloudify.ClientConfig
 	Deployment string `json:"deployment,omitempty"`
 }
 
@@ -44,6 +41,7 @@ func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.Resourc
 	cloudConfig.User = os.Getenv("CFY_USER")
 	cloudConfig.Password = os.Getenv("CFY_PASSWORD")
 	cloudConfig.Tenant = os.Getenv("CFY_TENANT")
+	cloudConfig.AgentFile = os.Getenv("CFY_AGENT")
 	if config != nil {
 		err := json.NewDecoder(config).Decode(&cloudConfig)
 		if err != nil {
@@ -51,20 +49,9 @@ func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.Resourc
 		}
 	}
 
-	if len(cloudConfig.Host) == 0 {
-		return nil, fmt.Errorf("You have empty host")
-	}
-
-	if len(cloudConfig.User) == 0 {
-		return nil, fmt.Errorf("You have empty user")
-	}
-
-	if len(cloudConfig.Password) == 0 {
-		return nil, fmt.Errorf("You have empty password")
-	}
-
-	if len(cloudConfig.Tenant) == 0 {
-		return nil, fmt.Errorf("You have empty tenant")
+	configErr := cloudify.ValidateConnectionTenant(cloudConfig.ClientConfig)
+	if configErr != nil {
+		return nil, configErr
 	}
 
 	if len(cloudConfig.Deployment) == 0 {
@@ -73,9 +60,7 @@ func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.Resourc
 
 	glog.V(4).Infof("Config %+v", cloudConfig)
 	return &CloudifyScaleProvider{
-		client: cloudify.NewClient(
-			cloudConfig.Host, cloudConfig.User,
-			cloudConfig.Password, cloudConfig.Tenant),
+		client:          cloudify.NewClient(cloudConfig.ClientConfig),
 		deploymentID:    cloudConfig.Deployment,
 		resourceLimiter: resourceLimiter,
 	}, nil
