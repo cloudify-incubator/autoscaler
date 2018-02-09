@@ -48,6 +48,10 @@ func (clsp *CloudifyScaleProvider) GetResourceLimiter() (*cloudprovider.Resource
 // In particular the list of node groups returned by NodeGroups can change as a result of CloudProvider.Refresh().
 func (clsp *CloudifyScaleProvider) Refresh() error {
 	glog.Errorf("?Refresh: %v", clsp.deploymentID)
+	// cleanup connection
+	clsp.client.ResetConnection()
+	// create cache for connection
+	clsp.client.CacheConnection()
 	return nil
 }
 
