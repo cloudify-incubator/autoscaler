@@ -17,48 +17,21 @@ limitations under the License.
 package cloudifyprovider
 
 import (
-	"encoding/json"
-	"fmt"
 	cloudify "github.com/cloudify-incubator/cloudify-rest-go-client/cloudify"
 	"github.com/golang/glog"
 	"io"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
-	"os"
 )
-
-// Config - settings for connect to cloudify
-type Config struct {
-	cloudify.ClientConfig
-	Deployment string `json:"deployment,omitempty"`
-}
 
 // BuildCloudifyCloud - create cloudify provider instance
 func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.ResourceLimiter) (*CloudifyScaleProvider, error) {
 	glog.Warning("New Cloudify client")
 
-	var cloudConfig Config
-	cloudConfig.Host = os.Getenv("CFY_HOST")
-	cloudConfig.User = os.Getenv("CFY_USER")
-	cloudConfig.Password = os.Getenv("CFY_PASSWORD")
-	cloudConfig.Tenant = os.Getenv("CFY_TENANT")
-	cloudConfig.AgentFile = os.Getenv("CFY_AGENT")
-	if config != nil {
-		err := json.NewDecoder(config).Decode(&cloudConfig)
-		if err != nil {
-			return nil, err
-		}
+	cloudConfig, err := cloudify.ServiceClientInit(config)
+	if err != nil {
+		return nil, err
 	}
 
-	configErr := cloudify.ValidateConnectionTenant(cloudConfig.ClientConfig)
-	if configErr != nil {
-		return nil, configErr
-	}
-
-	if len(cloudConfig.Deployment) == 0 {
-		return nil, fmt.Errorf("You have empty deployment")
-	}
-
-	glog.V(4).Infof("Config %+v", cloudConfig)
 	return &CloudifyScaleProvider{
 		client:          cloudify.NewClient(cloudConfig.ClientConfig),
 		deploymentID:    cloudConfig.Deployment,

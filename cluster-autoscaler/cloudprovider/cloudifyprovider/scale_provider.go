@@ -92,25 +92,7 @@ func (clsp *CloudifyScaleProvider) NodeGroupForNode(kubeNode *apiv1.Node) (cloud
 		// search instance
 		for _, cloudInstance := range cloudInstances.Items {
 			// check runtime properties
-			if cloudInstance.RuntimeProperties != nil {
-				if v, ok := cloudInstance.RuntimeProperties["hostname"]; ok == true {
-					switch v.(type) {
-					case string:
-						{
-							if v.(string) != kubeNode.Name {
-								// node with different name
-								continue
-							}
-						}
-					}
-				} else {
-					glog.Warningf("No name for %+v\n", cloudInstance.HostID)
-					// node without name
-					continue
-				}
-			} else {
-				glog.Warningf("No properties for %+v\n", cloudInstance.HostID)
-				// no properties
+			if cloudInstance.GetStringProperty("hostname") != kubeNode.Name {
 				continue
 			}
 

@@ -147,24 +147,13 @@ func (clng *NodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
 	}
 	for _, cloudInstance := range cloudInstances.Items {
 		for _, kubeNode := range nodes {
+			hostName := cloudInstance.GetStringProperty("hostname")
 			// check runtime properties
-			if cloudInstance.RuntimeProperties != nil {
-				if v, ok := cloudInstance.RuntimeProperties["hostname"]; ok == true {
-					switch v.(type) {
-					case string:
-						{
-							if v.(string) != kubeNode.Name {
-								// node with different name
-								continue
-							}
-						}
-					}
-				} else {
-					// node without name
-					continue
-				}
-				removedIdsIncludeHint = append(removedIdsIncludeHint, cloudInstance.ID)
+			if hostName != kubeNode.Name {
+				// node with different name
+				continue
 			}
+			removedIdsIncludeHint = append(removedIdsIncludeHint, cloudInstance.ID)
 		}
 	}
 
@@ -237,16 +226,10 @@ func (clng *NodeGroup) Nodes() ([]string, error) {
 		return nodeInstancesList, err
 	}
 	for _, instance := range nodeInstances.Items {
-		// check runtime properties
-		if instance.RuntimeProperties != nil {
-			if v, ok := instance.RuntimeProperties["hostname"]; ok == true {
-				switch v.(type) {
-				case string:
-					{
-						nodeInstancesList = append(nodeInstancesList, v.(string))
-					}
-				}
-			}
+		hostName := instance.GetStringProperty("hostname")
+
+		if hostName != "" {
+			nodeInstancesList = append(nodeInstancesList, hostName)
 		}
 	}
 	glog.Warningf("Nodes(%v.%v): %+v", clng.deploymentID, clng.scaleGroup, nodeInstancesList)
