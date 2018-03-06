@@ -81,7 +81,7 @@ func (clsp *CloudifyScaleProvider) NodeGroupForNode(kubeNode *apiv1.Node) (cloud
 	glog.V(4).Infof("NodeGroupForNode(%v.%v)", clsp.deploymentID, kubeNode.Name)
 
 	groupedInstances, err := clsp.client.GetDeploymentInstancesScaleGrouped(
-		clsp.deploymentID, "cloudify.nodes.ApplicationServer.kubernetes.Node")
+		clsp.deploymentID, cloudify.KubernetesNode)
 
 	if err != nil {
 		glog.Errorf("Cloudify error: %s\n", err.Error())

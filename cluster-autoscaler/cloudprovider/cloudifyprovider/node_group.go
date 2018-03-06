@@ -141,7 +141,7 @@ func (clng *NodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
 	params := map[string]string{}
 	params["deployment_id"] = clng.deploymentID
 	cloudInstances, err := clng.client.GetStartedNodeInstancesWithType(
-		params, "cloudify.nodes.ApplicationServer.kubernetes.Node")
+		params, cloudify.KubernetesNode)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (clng *NodeGroup) Nodes() ([]string, error) {
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
 		clng.deploymentID, clng.scaleGroup,
-		"cloudify.nodes.ApplicationServer.kubernetes.Node")
+		cloudify.KubernetesNode)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return nodeInstancesList, err
@@ -243,7 +243,7 @@ func (clng *NodeGroup) InstancesNames() ([]string, error) {
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
 		clng.deploymentID, clng.scaleGroup,
-		"cloudify.nodes.ApplicationServer.kubernetes.Node")
+		cloudify.KubernetesNode)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return nodeInstancesList, err
@@ -260,7 +260,7 @@ func (clng *NodeGroup) getCurrentCharacteristics() (int64, int64) {
 	var cpu int64 = 1
 	var memory int64 = 512
 	nodes, err := clng.client.GetDeploymentScaleGroupNodes(clng.deploymentID, clng.scaleGroup,
-		"cloudify.nodes.ApplicationServer.kubernetes.Node")
+		cloudify.KubernetesNode)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return cpu, memory
