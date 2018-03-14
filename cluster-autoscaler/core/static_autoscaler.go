@@ -26,10 +26,21 @@ import (
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/gpu"
 	kube_util "k8s.io/autoscaler/cluster-autoscaler/utils/kubernetes"
+
+	apiv1 "k8s.io/api/core/v1"
 	kube_client "k8s.io/client-go/kubernetes"
 	kube_record "k8s.io/client-go/tools/record"
 
 	"github.com/golang/glog"
+)
+
+const (
+	// How old the oldest unschedulable pod should be before starting scale up.
+	unschedulablePodTimeBuffer = 2 * time.Second
+	// How old the oldest unschedulable pod with GPU should be before starting scale up.
+	// The idea is that nodes with GPU are very expensive and we're ready to sacrifice
+	// a bit more latency to wait for more pods and make a more informed scale-up decision.
+	unschedulablePodWithGpuTimeBuffer = 30 * time.Second
 )
 
 // StaticAutoscaler is an autoscaler which has all the core functionality of a CA but without the reconfiguration feature
@@ -146,15 +157,6 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 				status.GetReadableString(), a.AutoscalingContext.LogRecorder)
 		}
 	}()
-	if !a.ClusterStateRegistry.IsClusterHealthy() {
-		glog.Warning("Cluster is not ready for autoscaling")
-		scaleDown.CleanUpUnneededNodes()
-		return nil
-	}
-
-	metrics.UpdateDurationFromStart(metrics.UpdateState, runStart)
-	metrics.UpdateLastTime(metrics.Autoscaling, time.Now())
-
 	// Check if there are any nodes that failed to register in Kubernetes
 	// master.
 	unregisteredNodes := a.ClusterStateRegistry.GetUnregisteredNodes()
@@ -177,6 +179,14 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 			return nil
 		}
 	}
+	if !a.ClusterStateRegistry.IsClusterHealthy() {
+		glog.Warning("Cluster is not ready for autoscaling")
+		scaleDown.CleanUpUnneededNodes()
+		return nil
+	}
+
+	metrics.UpdateDurationFromStart(metrics.UpdateState, runStart)
+	metrics.UpdateLastTime(metrics.Autoscaling, time.Now())
 
 	// Check if there has been a constant difference between the number of nodes in k8s and
 	// the number of nodes on the cloud provider side.
@@ -240,10 +250,19 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 		glog.V(4).Info("No schedulable pods")
 	}
 
+	// If all pending pods are new we may want to skip a real scale down (just like if the pods were handled).
+	allPendingPodsToHelpAreNew := false
+
 	if len(unschedulablePodsToHelp) == 0 {
 		glog.V(1).Info("No unschedulable pods")
 	} else if a.MaxNodesTotal > 0 && len(readyNodes) >= a.MaxNodesTotal {
 		glog.V(1).Info("Max total nodes in cluster reached")
+	} else if allPodsAreNew(unschedulablePodsToHelp, currentTime) {
+		// The assumption here is that these pods have been created very recently and probably there
+		// is more pods to come. In theory we could check the newest pod time but then if pod were created
+		// slowly but at the pace of 1 every 2 seconds then no scale up would be triggered for long time.
+		allPendingPodsToHelpAreNew = true
+		glog.V(1).Info("Unschedulable pods are very new, waiting one iteration for more")
 	} else {
 		daemonsets, err := a.ListerRegistry.DaemonSetLister().List()
 		if err != nil {
@@ -301,7 +320,8 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 			a.lastScaleDownFailTime.Add(a.ScaleDownDelayAfterFailure).After(currentTime) ||
 			a.lastScaleDownDeleteTime.Add(a.ScaleDownDelayAfterDelete).After(currentTime) ||
 			schedulablePodsPresent ||
-			scaleDown.nodeDeleteStatus.IsDeleteInProgress()
+			scaleDown.nodeDeleteStatus.IsDeleteInProgress() ||
+			allPendingPodsToHelpAreNew
 
 		glog.V(4).Infof("Scale down status: unneededOnly=%v lastScaleUpTime=%s "+
 			"lastScaleDownDeleteTime=%v lastScaleDownFailTime=%s schedulablePodsPresent=%v isDeleteInProgress=%v",
@@ -346,4 +366,12 @@ func (a *StaticAutoscaler) ExitCleanUp() {
 		return
 	}
 	utils.DeleteStatusConfigMap(a.AutoscalingContext.ClientSet, a.AutoscalingContext.ConfigNamespace)
+}
+
+func allPodsAreNew(pods []*apiv1.Pod, currentTime time.Time) bool {
+	if getOldestCreateTime(pods).Add(unschedulablePodTimeBuffer).After(currentTime) {
+		return true
+	}
+	found, oldest := getOldestCreateTimeWithGpu(pods)
+	return found && oldest.Add(unschedulablePodWithGpuTimeBuffer).After(currentTime)
 }
