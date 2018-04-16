@@ -34,6 +34,7 @@ type NodeGroup struct {
 	client       *cloudify.Client
 	scaleGroup   string
 	deploymentID string
+	nodeDataType     string
 }
 
 // MaxSize returns maximum size of the node group.
@@ -141,7 +142,7 @@ func (clng *NodeGroup) DeleteNodes(nodes []*apiv1.Node) error {
 	params := map[string]string{}
 	params["deployment_id"] = clng.deploymentID
 	cloudInstances, err := clng.client.GetStartedNodeInstancesWithType(
-		params, cloudify.KubernetesNode)
+		params, clng.nodeDataType)
 	if err != nil {
 		return err
 	}
@@ -219,8 +220,7 @@ func (clng *NodeGroup) Nodes() ([]string, error) {
 
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
-		clng.deploymentID, clng.scaleGroup,
-		cloudify.KubernetesNode)
+		clng.deploymentID, clng.scaleGroup, clng.nodeDataType)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return nodeInstancesList, err
@@ -242,8 +242,7 @@ func (clng *NodeGroup) InstancesNames() ([]string, error) {
 
 	nodeInstancesList := []string{}
 	nodeInstances, err := clng.client.GetDeploymentScaleGroupInstances(
-		clng.deploymentID, clng.scaleGroup,
-		cloudify.KubernetesNode)
+		clng.deploymentID, clng.scaleGroup, clng.nodeDataType)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return nodeInstancesList, err
@@ -259,8 +258,7 @@ func (clng *NodeGroup) InstancesNames() ([]string, error) {
 func (clng *NodeGroup) getCurrentCharacteristics() (int64, int64) {
 	var cpu int64 = 1
 	var memory int64 = 512
-	nodes, err := clng.client.GetDeploymentScaleGroupNodes(clng.deploymentID, clng.scaleGroup,
-		cloudify.KubernetesNode)
+	nodes, err := clng.client.GetDeploymentScaleGroupNodes(clng.deploymentID, clng.scaleGroup, clng.nodeDataType)
 	if err != nil {
 		glog.Errorf("Issues with get scale group%+v", clng.scaleGroup)
 		return cpu, memory
@@ -390,11 +388,12 @@ func (clng *NodeGroup) String() string {
 }
 
 // NodeToNodeGroup - create cloudify node group
-func NodeToNodeGroup(client *cloudify.Client, deploymentID, groupName string) *NodeGroup {
+func NodeToNodeGroup(client *cloudify.Client, deploymentID, groupName, nodeDataType string) *NodeGroup {
 	glog.V(4).Infof("NodeToNodeGroup(%v.%v)", deploymentID, groupName)
 	return &NodeGroup{
 		client:       client,
 		scaleGroup:   groupName,
 		deploymentID: deploymentID,
+		nodeDataType: nodeDataType,
 	}
 }
