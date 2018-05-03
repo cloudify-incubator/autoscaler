@@ -17,13 +17,13 @@ limitations under the License.
 package cloudifyprovider
 
 import (
+	"fmt"
 	"github.com/cloudify-incubator/cloudify-rest-go-client/cloudify"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
-	"fmt"
 )
 
 // CloudifyScaleProvider - settings for connect to cloudify

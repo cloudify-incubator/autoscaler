@@ -34,7 +34,7 @@ type NodeGroup struct {
 	client       *cloudify.Client
 	scaleGroup   string
 	deploymentID string
-	nodeDataType     string
+	nodeDataType string
 }
 
 // MaxSize returns maximum size of the node group.
