@@ -34,7 +34,7 @@ func BuildCloudifyCloud(config io.Reader, resourceLimiter *cloudprovider.Resourc
 
 	return &CloudifyScaleProvider{
 		client:          cloudify.NewClient(cloudConfig.ClientConfig),
-		deploymentID:    cloudConfig.Deployment,
+		deployment:    cloudConfig.DeploymentsFile,
 		resourceLimiter: resourceLimiter,
 	}, nil
 }
